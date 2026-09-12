@@ -167,6 +167,8 @@ def delete_task(id: int):
         conn.close()
         raise HTTPException(status_code=404, detail=f"Task {id} not found")
 
+
+
 @app.on_event("startup")
 def startup():
     init_db()

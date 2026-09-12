@@ -1,7 +1,7 @@
 import os
 
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, Header
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from supabase import create_client, Client
@@ -127,6 +127,44 @@ def login(credentials: AuthRequest):
 
 
 # -------------------------
+# PROTECTED PROFILE
+# -------------------------
+
+@app.get("/protected/profile")
+def protected_profile(authorization: str | None = Header(default=None)):
+    if not authorization or not authorization.startswith("Bearer "):
+        return JSONResponse(
+            status_code=401,
+            content={
+                "error": "Invalid or expired token"
+            }
+        )
+
+    token = authorization.removeprefix("Bearer ").strip()
+    if not token:
+        return JSONResponse(
+            status_code=401,
+            content={
+                "error": "Invalid or expired token"
+            }
+        )
+
+    try:
+        response = supabase.auth.get_user(token)
+        if not response.user:
+            raise ValueError("Supabase did not return a user")
+
+        return response.user.model_dump()
+    except Exception:
+        return JSONResponse(
+            status_code=401,
+            content={
+                "error": "Invalid or expired token"
+            }
+        )
+
+
+# -------------------------
 # RUN SERVER
 # -------------------------
 
@@ -141,3 +179,5 @@ if __name__ == "__main__":
         port=PORT,
         reload=True
     )
+
+    
