@@ -1,0 +1,14 @@
+[
+  {
+    "page": "1",
+    "error": "could not convert string to float: '\u00c251.77'"
+  },
+  {
+    "page": "2",
+    "error": "could not convert string to float: '\u00c212.84'"
+  },
+  {
+    "page": "3",
+    "error": "could not convert string to float: '\u00c257.31'"
+  }
+]

@@ -1,7 +1,7 @@
 import os
 
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, Header, Response
+from fastapi import Depends, FastAPI, Header, Request, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from supabase import create_client, Client
@@ -35,6 +35,20 @@ app = FastAPI(
     description="Authentication API using FastAPI and Supabase",
     version="1.0.0"
 )
+
+
+class InvalidTokenError(Exception):
+    pass
+
+
+@app.exception_handler(InvalidTokenError)
+async def invalid_token_handler(request: Request, exception: InvalidTokenError):
+    return JSONResponse(
+        status_code=401,
+        content={
+            "error": "Invalid or expired token"
+        }
+    )
 
 
 # Request model
@@ -132,21 +146,11 @@ def login(credentials: AuthRequest):
 
 def verify_token(authorization: str | None = Header(default=None)):
     if not authorization:
-        return JSONResponse(
-            status_code=401,
-            content={
-                "error": "Invalid or expired token"
-            }
-        )
+        raise InvalidTokenError()
 
     parts = authorization.split()
     if len(parts) != 2 or parts[0].lower() != "bearer":
-        return JSONResponse(
-            status_code=401,
-            content={
-                "error": "Invalid or expired token"
-            }
-        )
+        raise InvalidTokenError()
 
     token = parts[1]
 
@@ -160,12 +164,7 @@ def verify_token(authorization: str | None = Header(default=None)):
             "user": response.user
         }
     except Exception:
-        return JSONResponse(
-            status_code=401,
-            content={
-                "error": "Invalid or expired token"
-            }
-        )
+        raise InvalidTokenError()
 
 
 # -------------------------
