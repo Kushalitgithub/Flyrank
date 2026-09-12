@@ -1,7 +1,7 @@
 import os
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, Header
+from fastapi import Depends, FastAPI, Header, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from supabase import create_client, Client
@@ -127,12 +127,11 @@ def login(credentials: AuthRequest):
 
 
 # -------------------------
-# PROTECTED PROFILE
+# AUTHENTICATION DEPENDENCY
 # -------------------------
 
-@app.get("/protected/profile")
-def protected_profile(authorization: str | None = Header(default=None)):
-    if not authorization or not authorization.startswith("Bearer "):
+def verify_token(authorization: str | None = Header(default=None)):
+    if not authorization:
         return JSONResponse(
             status_code=401,
             content={
@@ -140,21 +139,26 @@ def protected_profile(authorization: str | None = Header(default=None)):
             }
         )
 
-    token = authorization.removeprefix("Bearer ").strip()
-    if not token:
+    parts = authorization.split()
+    if len(parts) != 2 or parts[0].lower() != "bearer":
         return JSONResponse(
             status_code=401,
             content={
                 "error": "Invalid or expired token"
             }
         )
+
+    token = parts[1]
 
     try:
         response = supabase.auth.get_user(token)
         if not response.user:
             raise ValueError("Supabase did not return a user")
 
-        return response.user.model_dump()
+        return {
+            "token": token,
+            "user": response.user
+        }
     except Exception:
         return JSONResponse(
             status_code=401,
@@ -162,6 +166,37 @@ def protected_profile(authorization: str | None = Header(default=None)):
                 "error": "Invalid or expired token"
             }
         )
+
+
+# -------------------------
+# PROTECTED PROFILE
+# -------------------------
+
+@app.get("/protected/profile")
+def protected_profile(auth=Depends(verify_token)):
+    return auth["user"].model_dump()
+
+
+# -------------------------
+# PROTECTED DASHBOARD
+# -------------------------
+
+@app.get("/protected/dashboard")
+def protected_dashboard(auth=Depends(verify_token)):
+    return {
+        "message": "Welcome to your dashboard",
+        "user": auth["user"].model_dump()
+    }
+
+
+# -------------------------
+# LOGOUT
+# -------------------------
+
+@app.post("/auth/logout", status_code=204)
+def logout(auth=Depends(verify_token)):
+    supabase.auth.sign_out(auth["token"])
+    return Response(status_code=204)
 
 
 # -------------------------
